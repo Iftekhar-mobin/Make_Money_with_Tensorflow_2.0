@@ -52,9 +52,9 @@ for i in symbols:
         ohlc_data_h4 = pd.DataFrame(mt.copy_rates_range(i, mt.TIMEFRAME_H4, datetime(2015, 1, 1), datetime.now()))
         print('Download complete for ', i, ' for H4')
         file_name_h1 = 'H1' + '_' + i + '_' + '2015' + '.csv'
-        file_name_h4 = 'H1' + '_' + i + '_' + '2015' + '.csv'
+        file_name_h4 = 'H4' + '_' + i + '_' + '2015' + '.csv'
         ohlc_data_h1.to_csv(file_name_h1,index=False,header=True)
         ohlc_data_h4.to_csv(file_name_h4,index=False,header=True)
 
 print('Download complete')
-mt.close()
+mt.Close(i)
