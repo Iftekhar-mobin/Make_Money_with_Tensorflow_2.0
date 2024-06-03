@@ -13,14 +13,15 @@ length = 2*(n_steps_in+n_steps_out)
 logging.basicConfig(filename='task.log', level=logging.INFO,
                     format='%(asctime)s:%(levelname)s:%(message)s')
 
-def visualize_predictions(predicted_price, df_h4):
+def generate_signals(predicted_price, scaler, past_two):
     collector = []
     for i in range(len(predicted_price)):
     #     print(predicted_price[i, -1:])
         collector.append(predicted_price[i, -1:])
-        
-    predicted_30 = scaler.inverse_transform(collector[-30:]).reshape(-1)
 
+    predicted_30 = scaler.inverse_transform(collector[-30:]).reshape(-1)
+    last = past_two + predicted_30
+    
 def task():
     # Your task code goes here
     logging.info("Task executed")
@@ -31,14 +32,14 @@ def run_loop():
             dataset = fetch_dataset("EURUSD", length)
             # print(dataset)
 
-            n_features, X , y, _ , _, actual_y = process_dataset(dataset, n_steps_in, n_steps_out, split=False)
+            n_features, X , y, _ , _, actual_y, scale = process_dataset(dataset, n_steps_in, n_steps_out, split=False)
             model_arc = lstm_model(n_steps_in, n_steps_out, n_features)
             _, lstm_mod = train_or_reload(model_arc, model_name, X, y)
             prices = predict_prices(lstm_mod, X)
             print(prices)
 
 
-
+            generate_signals(prices, scale, actual_y[-2:])
 
 
         except Exception as e:
