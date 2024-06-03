@@ -12,7 +12,7 @@ def lstm_model(n_steps_in, n_steps_out, n_features):
     return model_arc
 
 
-def train_or_reload(lstm_model, saved_model, train_X, train_y, test_X, test_y):
+def train_or_reload(lstm_model, saved_model, train_X, train_y, test_X=None, test_y=None):
     history = ''
     try:
         lstm_model = load_model(saved_model)

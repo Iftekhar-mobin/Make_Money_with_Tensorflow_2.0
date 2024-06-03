@@ -34,14 +34,14 @@ def process_dataset(df_h4, steps_in, steps_out, split=True):
     x_2 = dataset['Open'].values
     x_3 = dataset['High'].values
     x_4 = dataset['Low'].values
-    y = dataset['avg'].values
+    y_avg = dataset['avg'].values
 
     # convert to [rows, columns] structure
     x_1 = x_1.reshape((len(x_1), 1))
     x_2 = x_2.reshape((len(x_2), 1))
     x_3 = x_2.reshape((len(x_3), 1))
     x_4 = x_2.reshape((len(x_4), 1))
-    y = y.reshape((len(y), 1))
+    y = y.reshape((len(y_avg), 1))
 
     # print ("x_1.shape" , x_1.shape)
     # print ("y.shape" , y.shape)
@@ -80,4 +80,4 @@ def process_dataset(df_h4, steps_in, steps_out, split=True):
     print ("train_y.shape" , train_y.shape)
     print ("n_features" , n_features)
 
-    return n_features, train_X , train_y, test_X , test_y
+    return n_features, train_X , train_y, test_X , test_y, y_avg, scaler
