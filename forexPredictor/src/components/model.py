@@ -16,6 +16,7 @@ def train_or_reload(lstm_model, saved_model, train_X, train_y, test_X, test_y):
     history = ''
     try:
         lstm_model = load_model(saved_model)
+        print('Model loaded successfully')
     except OSError as e:
         print("Model is not loaded, Training model now:", e)
         # Fit network

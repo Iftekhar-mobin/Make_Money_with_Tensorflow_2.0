@@ -1,0 +1,36 @@
+import time
+import logging
+from components.fetch_data import fetch_dataset
+from components.preprocessing import process_dataset
+from components.model import lstm_model, train_or_reload, predict_prices
+from components.constant import n_steps_in, n_steps_out, model_name
+
+# Configure logging
+logging.basicConfig(filename='task.log', level=logging.INFO,
+                    format='%(asctime)s:%(levelname)s:%(message)s')
+
+def task():
+    # Your task code goes here
+    logging.info("Task executed")
+
+def run_loop():
+    while True:
+        try:
+            dataset = fetch_dataset("EURUSD", n_steps_in+n_steps_out)
+            # print(dataset)
+
+            n_features, X , y, _ , _ = process_dataset(dataset, n_steps_in, n_steps_out, split=False)
+            model_arc = lstm_model(n_steps_in, n_steps_out, n_features)
+            _, lstm_mod = train_or_reload(model_arc, model_name, X, y)
+            prices = predict_prices(lstm_mod, X)
+            print(prices)
+
+        except Exception as e:
+            logging.error(f"An error occurred: {e}")
+        # Sleep for two hours (2 hours * 60 minutes/hour * 60 seconds/minute)
+        # time.sleep(2 * 60 * 60)
+        time.sleep(2)
+        # break
+
+if __name__ == "__main__":
+    run_loop()

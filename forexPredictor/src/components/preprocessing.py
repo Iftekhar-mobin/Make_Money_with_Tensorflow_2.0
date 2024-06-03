@@ -18,7 +18,7 @@ def split_sequences(sequences, n_steps_in, n_steps_out):
     return array(X), array(y)
 
 
-def process_dataset(df_h4, steps_in, steps_out):
+def process_dataset(df_h4, steps_in, steps_out, split=True):
     # Check for missing values
     print(df_h4.isna().sum())
 
@@ -43,8 +43,8 @@ def process_dataset(df_h4, steps_in, steps_out):
     x_4 = x_2.reshape((len(x_4), 1))
     y = y.reshape((len(y), 1))
 
-    print ("x_1.shape" , x_1.shape)
-    print ("y.shape" , y.shape)
+    # print ("x_1.shape" , x_1.shape)
+    # print ("y.shape" , y.shape)
 
     # normalization features
     scaler = MinMaxScaler(feature_range=(0, 1))
@@ -60,22 +60,24 @@ def process_dataset(df_h4, steps_in, steps_out):
 
 
     # covert into input/output
-    X, y = split_sequences(dataset_stacked, steps_in, steps_out)
+    X_, y_ = split_sequences(dataset_stacked, steps_in, steps_out)
 
-    print ("X.shape" , X.shape)
-    print ("y.shape" , y.shape)
+    print ("After sequence Splitting X.shape" , X_.shape)
+    print ("After sequence Splitting y.shape" , y_.shape)
 
-    split = int(len(X)*0.9)
-    train_X , train_y = X[:split, :] , y[:split, :]
-    test_X , test_y = X[split:, :] , y[split:, :]
+    if split:
+        split_range = int(len(X_)*0.95)
+        train_X , train_y = X_[:split_range, :] , y_[:split_range, :]
+        test_X , test_y = X_[split_range:, :] , y_[split_range:, :]
+    else:
+        train_X , train_y = X_, y_
+        test_X , test_y = None, None
 
     n_features = train_X.shape[2]
 
 
     print ("train_X.shape" , train_X.shape)
     print ("train_y.shape" , train_y.shape)
-    print ("test_X.shape" , test_X.shape)
-    print ("test_y.shape" , test_y.shape)
     print ("n_features" , n_features)
 
     return n_features, train_X , train_y, test_X , test_y
