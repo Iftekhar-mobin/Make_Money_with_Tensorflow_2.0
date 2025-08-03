@@ -206,6 +206,14 @@ scaler = TimeSeriesScalerMinMax()
 chunks_scaled = scaler.fit_transform(chunks)
 
 
+################################################
+# Dimensionality Reduction Before Clustering
+from sklearn.decomposition import PCA
+pca = PCA(n_components=2)
+features_pca = pca.fit_transform(features_scaled)
+##################################################
+
+
 # Cluster into 3 groups (Buy/Sell/Hold)
 Time_Series_KMeans = TimeSeriesKMeans(n_clusters=3, random_state=0)
 cluster_labels = Time_Series_KMeans.fit_predict(chunks_scaled)
