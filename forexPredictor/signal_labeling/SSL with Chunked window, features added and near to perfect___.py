@@ -1,11 +1,11 @@
 import pandas as pd
+import os
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from tensorflow.keras import layers, Model
 from tensorflow.keras.models import load_model
 import ta
-import os
 import matplotlib.pyplot as plt
 
 # =============================================================================

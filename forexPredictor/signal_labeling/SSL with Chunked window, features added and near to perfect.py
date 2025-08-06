@@ -3,6 +3,8 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from tensorflow.keras import layers, Model
+import tensorflow as tf
+import random
 import ta
 import os
 import matplotlib.pyplot as plt
@@ -95,6 +97,17 @@ X_scaled = scaler.fit_transform(X)
 # ================================
 # Self-Supervised Autoencoder
 # ================================
+
+# 1. Set random seeds
+seed = 42
+np.random.seed(seed)
+random.seed(seed)
+tf.random.set_seed(seed)
+
+# 2. Make TensorFlow deterministic
+os.environ['TF_DETERMINISTIC_OPS'] = '1'
+os.environ['PYTHONHASHSEED'] = str(seed)
+
 input_dim = X_scaled.shape[1]
 input_layer = layers.Input(shape=(input_dim,))
 encoded = layers.Dense(16, activation='relu')(input_layer)
@@ -104,7 +117,18 @@ decoded = layers.Dense(input_dim, activation='linear')(decoded)
 
 autoencoder = Model(inputs=input_layer, outputs=decoded)
 autoencoder.compile(optimizer='adam', loss='mse')
-autoencoder.fit(X_scaled, X_scaled, epochs=100, batch_size=32, verbose=0)
+history = autoencoder.fit(X_scaled, X_scaled, epochs=30, batch_size=32, 
+                shuffle=False, verbose=1)
+
+
+plt.figure(figsize=(10, 6))
+plt.plot(history.history['loss'], label='Training Loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss (MSE)')
+plt.title('Autoencoder Training Loss Curve')
+plt.legend()
+plt.grid(True)
+plt.show()
 
 # ================================
 # Extract Embeddings
