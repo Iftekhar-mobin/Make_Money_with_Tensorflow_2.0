@@ -1,12 +1,17 @@
 import pandas as pd
+import random
 import os
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
+import tensorflow as tf
 from tensorflow.keras import layers, Model
 from tensorflow.keras.models import load_model
 import ta
 import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+import warnings
+warnings.filterwarnings("ignore")  # suppress ARIMA convergence warnings
 
 # =============================================================================
 # # Load data (must contain Open, High, Low, Close, Volume)
@@ -50,9 +55,17 @@ data_main.reset_index(drop=True, inplace=True)
 data_main.head()
 
 
+window_size = 24
 # ================================
 # Feature Engineering
 # ================================
+def compute_slope(series):
+    """Computes slope of a time series using linear regression."""
+    X = np.arange(len(series)).reshape(-1, 1)
+    y = series.values.reshape(-1, 1)
+    model = LinearRegression().fit(X, y)
+    return model.coef_[0][0]  # slope
+
 def add_technical_indicators(df):
     df['SMA_10'] = df['Close'].rolling(10).mean()
     df['EMA_10'] = df['Close'].ewm(span=10).mean()
@@ -68,30 +81,57 @@ df.head()
 # ================================
 # Chunk Time Series
 # ================================
-def chunk_series(df, window=20):
+def chunk_series(df, window=24):
     chunks = []
+
     for i in range(len(df) - window):
         chunk = df.iloc[i:i+window]
+
+        # Slope features (trend strength)
+        close_slope = compute_slope(chunk['Close'])
+        sma_slope = compute_slope(chunk['SMA_10'].fillna(method='bfill'))
+        ema_slope = compute_slope(chunk['EMA_10'].fillna(method='bfill'))
+
+        # Feature vector
         features = [
-            chunk['log_return'].mean(),
-            chunk['log_return'].std(),
-            chunk['SMA_10'].iloc[-1] / chunk['Close'].iloc[-1],
-            chunk['EMA_10'].iloc[-1] / chunk['Close'].iloc[-1],
-            chunk['RSI_14'].iloc[-1],
-            chunk['ATR'].mean(),
-            chunk['BB_width'].mean(),
-            # chunk['Volume'].mean()
+            chunk['log_return'].mean(),                 # 0
+            chunk['log_return'].std(),                  # 1
+            chunk['SMA_10'].iloc[-1] / chunk['Close'].iloc[-1],  # 2
+            chunk['EMA_10'].iloc[-1] / chunk['Close'].iloc[-1],  # 3
+            chunk['RSI_14'].iloc[-1],                   # 4
+            chunk['ATR'].mean(),                        # 5
+            chunk['BB_width'].mean(),                   # 6
+            close_slope,                                # 7
+            sma_slope,                                  # 8
+            ema_slope,                                  # 9
         ]
         chunks.append(features)
+
     return np.array(chunks)
 
 X = chunk_series(df, window=24)
+
+# Save chunk end timestamps for traceability (optional, for plotting/backtesting)
+chunk_timestamps = [df.index[i + window_size - 1] for i in range(len(df) - window_size)]
 
 # ================================
 # Normalize Features
 # ================================
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
+
+
+
+# 1. Set random seeds
+seed = 42
+np.random.seed(seed)
+random.seed(seed)
+tf.random.set_seed(seed)
+
+# 2. Make TensorFlow deterministic
+os.environ['TF_DETERMINISTIC_OPS'] = '1'
+os.environ['PYTHONHASHSEED'] = str(seed)
+
 
 # ================================
 # Self-Supervised Autoencoder
@@ -124,7 +164,8 @@ else:
 
     autoencoder = Model(inputs=input_layer, outputs=decoded)
     autoencoder.compile(optimizer='adam', loss='mse')
-    autoencoder.fit(X_scaled, X_scaled, epochs=100, batch_size=32, verbose=0)
+    history = autoencoder.fit(X_scaled, X_scaled, epochs=10, batch_size=32, 
+                shuffle=False, verbose=1)
 
     # Create encoder model
     encoder = Model(inputs=input_layer, outputs=encoded)
@@ -133,6 +174,18 @@ else:
     autoencoder.save(autoencoder_path)
     encoder.save(encoder_path)
     print(f"✅ Models trained and saved at:\n- {autoencoder_path}\n- {encoder_path}")
+
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(history.history['loss'], label='Training Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss (MSE)')
+    plt.title('Autoencoder Training Loss Curve')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+
 
 # ================================
 # Extract Embeddings
@@ -156,9 +209,15 @@ for i in range(0, len(df) - chunk_sz - 5, step_sz):
     end_idx = i + chunk_sz - 1
     ret = (df['Close'].iloc[end_idx + 5] / df['Close'].iloc[end_idx]) - 1
     future_returns.append(ret)
-    chunk_labels.append(clusters[len(future_returns)-1])  # same indexing
+    # chunk_labels.append(clusters[len(future_returns)-1])  # same indexing
+    chunk_labels.append(clusters[i])
 
-cluster_df = pd.DataFrame({'cluster': chunk_labels, 'future_return': future_returns})
+# cluster_df = pd.DataFrame({'cluster': chunk_labels, 'future_return': future_returns})
+cluster_df = pd.DataFrame({
+    'timestamp': chunk_timestamps[:len(future_returns)],
+    'cluster': chunk_labels,
+    'future_return': future_returns
+})
 
 # Get average return per cluster
 mapping_order = cluster_df.groupby('cluster')['future_return'].mean().sort_values().index.tolist()
@@ -208,3 +267,22 @@ print(f"✅ Signals saved to: {output_csv_path}")
 df_loaded = pd.read_csv(output_csv_path)
 print("✅ Loaded Data Sample: for visulization")
 print(df_loaded.head())
+
+
+
+# =============================================================================
+# cluster visualization
+# =============================================================================
+from sklearn.decomposition import PCA
+import seaborn as sns
+
+
+pca = PCA(n_components=2)
+embeddings_2d = pca.fit_transform(embeddings)
+
+plt.figure(figsize=(8, 6))
+sns.scatterplot(x=embeddings_2d[:, 0], y=embeddings_2d[:, 1], hue=clusters, palette='Set1')
+plt.title("KMeans Clusters on Autoencoder Embeddings")
+plt.show()
+
+

@@ -117,7 +117,7 @@ decoded = layers.Dense(input_dim, activation='linear')(decoded)
 
 autoencoder = Model(inputs=input_layer, outputs=decoded)
 autoencoder.compile(optimizer='adam', loss='mse')
-history = autoencoder.fit(X_scaled, X_scaled, epochs=30, batch_size=32, 
+history = autoencoder.fit(X_scaled, X_scaled, epochs=10, batch_size=32, 
                 shuffle=False, verbose=1)
 
 
