@@ -170,8 +170,13 @@ class SignalMLPipeline:
         )
 
         save_path = os.path.join(self.data_dir, 'cleaned_generated_signal_for_XGB.csv')
+
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
         self.dataset.to_csv(save_path, index=False)
         print(f"Signal dataset saved at {save_path}")
+
 
     # ---------------------------
     # FEATURE EXTRACTION + CLEANING
