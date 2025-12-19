@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.signal import argrelextrema
 from ta.volatility import AverageTrueRange
+from ta.momentum import RSIIndicator
 from sklearn.linear_model import LinearRegression
 
 
@@ -123,3 +124,160 @@ def remove_low_volatility_signals(df, threshold_percentile=20, atr_period=14):
     print(f"Low-volatility threshold (ATR percentile {threshold_percentile}%) = {atr_threshold:.6f}")
     print(f"After nullify prior signal: {df['Signal'].value_counts()}")
     return df
+
+
+def generate_atr_sma_signals(df, atr_period=14, atr_multiplier=1.5, sma_period=50, low_vol_percentile=20):
+    """
+    ATR-based breakout signals with SMA trend filter and low-volatility filter.
+
+    df: DataFrame with 'high', 'low', 'close' columns
+    atr_period: ATR lookback period
+    atr_multiplier: multiplier for ATR breakout
+    sma_period: SMA period for trend filter
+    low_vol_percentile: percentile to remove low-volatility signals
+    """
+    df = df.copy()
+
+    # ---------------------
+    # ATR Calculation
+    # ---------------------
+    atr = AverageTrueRange(high=df['high'], low=df['low'], close=df['close'], window=atr_period)
+    df['ATR'] = atr.average_true_range()
+
+    # ---------------------
+    # SMA Trend Filter
+    # ---------------------
+    df['SMA'] = df['close'].rolling(sma_period).mean()
+
+    # ---------------------
+    # ATR Breakout Bands
+    # ---------------------
+    df['Upper_Band'] = df['close'].shift(1) + atr_multiplier * df['ATR']
+    df['Lower_Band'] = df['close'].shift(1) - atr_multiplier * df['ATR']
+
+    # ---------------------
+    # Initial Signals
+    # ---------------------
+    df['Signal'] = 0
+    df.loc[df['close'] > df['Upper_Band'], 'Signal'] = 1   # Buy
+    df.loc[df['close'] < df['Lower_Band'], 'Signal'] = -1  # Sell
+
+    # ---------------------
+    # Trend Filter
+    # ---------------------
+    df.loc[(df['Signal'] == 1) & (df['close'] < df['SMA']), 'Signal'] = 0
+    df.loc[(df['Signal'] == -1) & (df['close'] > df['SMA']), 'Signal'] = 0
+
+    # ---------------------
+    # Low-volatility Filter
+    # ---------------------
+    atr_threshold = df['ATR'].quantile(low_vol_percentile / 100)
+    df.loc[df['ATR'] < atr_threshold, 'Signal'] = 0
+
+    print(f"Low-volatility threshold (ATR percentile {low_vol_percentile}%) = {atr_threshold:.6f}")
+    print(f"Signal counts after trend & volatility filter:\n{df['Signal'].value_counts()}")
+
+    # ---------------------
+    # Final Output
+    # ---------------------
+    return df[['close', 'high', 'low', 'ATR', 'SMA', 'Upper_Band', 'Lower_Band', 'Signal']]
+
+
+def ema_crossover_signal(df, fast=9, slow=21):
+    df = df.copy()
+    df['EMA_fast'] = df['close'].ewm(span=fast, adjust=False).mean()
+    df['EMA_slow'] = df['close'].ewm(span=slow, adjust=False).mean()
+    
+    df['Signal'] = 0
+    df.loc[df['EMA_fast'] > df['EMA_slow'], 'Signal'] = 1
+    df.loc[df['EMA_fast'] < df['EMA_slow'], 'Signal'] = -1
+    
+    # Optional: remove conflicting signals with trend SMA(50)
+    df['SMA50'] = df['close'].rolling(50).mean()
+    df.loc[(df['Signal']==1) & (df['close']<df['SMA50']), 'Signal']=0
+    df.loc[(df['Signal']==-1) & (df['close']>df['SMA50']), 'Signal']=0
+    
+    return df[['close','EMA_fast','EMA_slow','SMA50','Signal']]
+
+
+def bollinger_signal(df, period=20, std_mult=2):
+    df = df.copy()
+    df['SMA'] = df['close'].rolling(period).mean()
+    df['STD'] = df['close'].rolling(period).std()
+    df['Upper'] = df['SMA'] + std_mult*df['STD']
+    df['Lower'] = df['SMA'] - std_mult*df['STD']
+    
+    df['Signal'] = 0
+    df.loc[df['close'] < df['Lower'], 'Signal'] = 1   # Buy
+    df.loc[df['close'] > df['Upper'], 'Signal'] = -1  # Sell
+    
+    return df[['close','SMA','Upper','Lower','Signal']]
+
+
+def rsi_signal(df, period=14, lower=30, upper=70):
+    df = df.copy()
+    df['RSI'] = RSIIndicator(df['close'], period).rsi()
+    
+    df['Signal'] = 0
+    df.loc[df['RSI'] < lower, 'Signal'] = 1
+    df.loc[df['RSI'] > upper, 'Signal'] = -1
+    
+    # Trend filter optional
+    df['SMA50'] = df['close'].rolling(50).mean()
+    df.loc[(df['Signal']==1) & (df['close']<df['SMA50']), 'Signal']=0
+    df.loc[(df['Signal']==-1) & (df['close']>df['SMA50']), 'Signal']=0
+    
+    return df[['close','RSI','SMA50','Signal']]
+
+
+def large_engulfing_signal(df, atr_period=14, sma_period=50, min_body_multiplier=0.5):
+    """
+    Detect large bullish/bearish engulfing candles and generate signals
+    df: DataFrame with 'open', 'high', 'low', 'close'
+    atr_period: ATR lookback for filtering small candles
+    sma_period: SMA period for trend filter
+    min_body_multiplier: min candle body size relative to ATR
+    """
+    df = df.copy()
+
+    # ---------------------
+    # ATR filter for candle size
+    # ---------------------
+    atr = AverageTrueRange(high=df['high'], low=df['low'], close=df['close'], window=atr_period)
+    df['ATR'] = atr.average_true_range()
+    
+    # Compute candle body
+    df['Body'] = abs(df['close'] - df['open'])
+
+    # SMA trend filter
+    df['SMA'] = df['close'].rolling(sma_period).mean()
+
+    # Initialize signal
+    df['Signal'] = 0
+
+    # Loop over candles to detect engulfing
+    for i in range(1, len(df)):
+        prev_open = df.loc[df.index[i-1], 'open']
+        prev_close = df.loc[df.index[i-1], 'close']
+        curr_open = df.loc[df.index[i], 'open']
+        curr_close = df.loc[df.index[i], 'close']
+        curr_body = df.loc[df.index[i], 'Body']
+        curr_atr = df.loc[df.index[i], 'ATR']
+
+        # Minimum body filter
+        if curr_body < curr_atr * min_body_multiplier:
+            continue
+
+        # Bullish Engulfing
+        if (curr_close > curr_open) and (curr_close > prev_open) and (curr_open < prev_close):
+            # Trend filter
+            if curr_close > df.loc[df.index[i], 'SMA']:
+                df.loc[df.index[i], 'Signal'] = 1
+
+        # Bearish Engulfing
+        elif (curr_close < curr_open) and (curr_close < prev_open) and (curr_open > prev_close):
+            if curr_close < df.loc[df.index[i], 'SMA']:
+                df.loc[df.index[i], 'Signal'] = -1
+
+    print(f"Engulfing signals generated: {df['Signal'].value_counts()}")
+    return df[['open','high','low','close','ATR','SMA','Body','Signal']]
