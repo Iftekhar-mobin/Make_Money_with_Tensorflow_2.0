@@ -32,6 +32,7 @@ from modules.models import (
     save_model,
     predict_with_new_dataset
 )
+from modules.simulator import run_backtesting_simulator
 
 
 # ---------------------------
@@ -83,12 +84,13 @@ class SignalMLPipeline:
         self.step_functions = {
             1: ("load", self.load_and_prepare_raw_data),
             2: ("label", self.generate_labels),
-            3: ("visualize", self.visualize_current_dataset),  # ← moved here
-            4: ("features", self.extract_features),
-            5: ("select", self._feature_selection_wrapper),
-            6: ("train", self._train_wrapper),
-            7: ("save", self.save),
-            8: ("test", self.test_new_dataset)
+            3: ("simulation", self._simulation),
+            4: ("visualize", self.visualize_current_dataset),  # ← moved here
+            5: ("features", self.extract_features),
+            6: ("select", self._feature_selection_wrapper),
+            7: ("train", self._train_wrapper),
+            8: ("save", self.save),
+            9: ("test", self.test_new_dataset)
         }
 
     # ---------------------------
@@ -105,6 +107,10 @@ class SignalMLPipeline:
     def _feature_selection_wrapper(self):
         self.X, self.y = self.feature_selection()
 
+    def _simulation(self):
+        simulation_results = run_backtesting_simulator(df=self.dataset)
+        print(simulation_results)
+
     def _train_wrapper(self):
         if not hasattr(self, "X") or not hasattr(self, "y"):
             raise RuntimeError(
@@ -115,7 +121,7 @@ class SignalMLPipeline:
     # ---------------------------------------------------
     # Flexible pipeline with start/end control
     # ---------------------------------------------------
-    def run_pipeline(self, start_step_=1, end_step_=7):
+    def run_pipeline(self, start_step_=1, end_step_=8):
         print(f"\n>>> Running pipeline from step {start_step_} to {end_step_}\n")
 
         for step in range(start_step_, end_step_ + 1):
@@ -176,7 +182,6 @@ class SignalMLPipeline:
 
         self.dataset.to_csv(save_path, index=False)
         print(f"Signal dataset saved at {save_path}")
-
 
     # ---------------------------
     # FEATURE EXTRACTION + CLEANING
@@ -310,6 +315,7 @@ if __name__ == "__main__":
         "save": 7,
         "test": 8
     }
+
 
     def convert_step(x):
         if x.isdigit():
