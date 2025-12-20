@@ -261,7 +261,7 @@ class SignalMLPipeline:
         test_df = rename_col(test_df)
 
         print("Extracting features from test dataset...")
-        test_df_features = extract_all_features(test_df)
+        test_df_features = extract_all_features(test_df.iloc[-10000:, :])
         test_df_features = handling_nan_after_feature_generate(test_df_features)
 
         X_new = test_df_features[self.selected_features].copy()
@@ -273,7 +273,8 @@ class SignalMLPipeline:
         )
         # Add 'close' column as an additional feature for plotting result
         result_df['close'] = test_df_features['close']
-        generate_signal_plot(result_df, val_limit=5000)
+        result_df.reset_index(drop=True, inplace=True)
+        generate_signal_plot(result_df, val_limit=10000)
 
         return result_df
 
