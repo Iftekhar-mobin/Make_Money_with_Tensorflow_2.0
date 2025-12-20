@@ -53,10 +53,10 @@ def run_backtesting_simulator(df, cash=10000, commission=0.002, plot=False):
         "volume": "Volume"
     }
 
-    df.rename(columns=rename_map, inplace=True)
+    df_new = df.rename(columns=rename_map)
 
     bt = Backtest(
-        df,
+        df_new,
         SignalBandStrategy,
         cash=cash,
         commission=commission,

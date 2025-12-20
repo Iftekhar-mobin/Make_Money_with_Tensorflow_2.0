@@ -5,8 +5,9 @@ from sklearn.impute import SimpleImputer
 
 
 def rename_col(df):
-    # Convert Unix timestamps to datetime format
-    df['Date'] = pd.to_datetime(df['time'], unit='s')
+    if 'time' in df.columns:
+        # Convert Unix timestamps to datetime format
+        df['Date'] = pd.to_datetime(df['time'], unit='s')
 
     # if 'volume' not in df.columns: df.rename(columns={'open':'Open', 'high':'High', 'low':'Low', 'close':'Close',
     # 'tick_volume':'Volume'}, inplace=True) else: df.rename(columns={'open':'Open', 'high':'High', 'low':'Low',

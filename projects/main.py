@@ -121,7 +121,7 @@ class SignalMLPipeline:
     # ---------------------------------------------------
     # Flexible pipeline with start/end control
     # ---------------------------------------------------
-    def run_pipeline(self, start_step_=1, end_step_=8):
+    def run_pipeline(self, start_step_=1, end_step_=9):
         print(f"\n>>> Running pipeline from step {start_step_} to {end_step_}\n")
 
         for step in range(start_step_, end_step_ + 1):
@@ -273,7 +273,7 @@ class SignalMLPipeline:
         )
         # Add 'close' column as an additional feature for plotting result
         result_df['close'] = test_df_features['close']
-        generate_signal_plot(result_df)
+        generate_signal_plot(result_df, val_limit=5000)
 
         return result_df
 
@@ -287,6 +287,7 @@ class SignalMLPipeline:
         X, y = self.feature_selection()
         self.train_model(X, y)
         self.save()
+        self.test_new_dataset()
 
         print("\nPipeline completed successfully.")
 
@@ -308,12 +309,13 @@ if __name__ == "__main__":
     step_map = {
         "load": 1,
         "label": 2,
-        "visualize": 3,  # ← moved here
-        "features": 4,
-        "select": 5,
-        "train": 6,
-        "save": 7,
-        "test": 8
+        "visualize": 3,
+        "simulation": 4,
+        "features": 5,
+        "select": 6,
+        "train": 7,
+        "save": 8,
+        "test": 9
     }
 
 
