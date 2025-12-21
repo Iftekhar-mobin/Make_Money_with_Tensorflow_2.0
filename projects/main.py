@@ -20,7 +20,6 @@ from modules.signal_label_processing import (
     filter_by_slope,
     prior_signal_making_zero
 )
-
 from modules.feature_generate import extract_all_features
 from modules.feature_selection import select_best_features
 from modules.models import (
@@ -28,11 +27,16 @@ from modules.models import (
     xgbmodel_adasyn,
     xgbmodel_kfold,
     xgbmodel_comparison_with_adasyn_smote,
-    load_model,
-    save_model,
     predict_with_new_dataset
 )
 from modules.simulator import run_backtesting_simulator
+from modules.utility import (
+    load_selected_features,
+    save_selected_features,
+    load_model,
+    save_model,
+    find_project_root
+)
 
 
 # ---------------------------
@@ -175,13 +179,13 @@ class SignalMLPipeline:
             )
         )
 
-        save_path = os.path.join(self.data_dir, 'cleaned_generated_signal_for_XGB.csv')
+        save_path = os.path.join(self.data_dir, 'cleaned_generated_signal.csv')
 
         # Ensure directory exists
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
         self.dataset.to_csv(save_path, index=False)
-        print(f"Signal dataset saved at {save_path}")
+        print(f"Dataset with generated Signal saved at {save_path}")
 
     # ---------------------------
     # FEATURE EXTRACTION + CLEANING
@@ -207,6 +211,7 @@ class SignalMLPipeline:
         selected_features = selected_features[selected_features != "time"]
 
         self.selected_features = list(selected_features)
+        save_selected_features(self.selected_features)
         self.pipe = pipe
 
         # Save internally
@@ -264,11 +269,15 @@ class SignalMLPipeline:
         test_df_features = extract_all_features(test_df.iloc[-10000:, :])
         test_df_features = handling_nan_after_feature_generate(test_df_features)
 
-        X_new = test_df_features[self.selected_features].copy()
+        if self.selected_features:
+            x = test_df_features[self.selected_features].copy()
+        else:
+            self.selected_features = load_selected_features()
+            x = test_df_features[self.selected_features].copy()
 
         print("Predicting signals...")
         result_df = predict_with_new_dataset(
-            X_new, self.pipe, self.model,
+            x, self.pipe, self.model,
             test_df_features[self.selected_features]
         )
         # Add 'close' column as an additional feature for plotting result
@@ -330,16 +339,22 @@ if __name__ == "__main__":
     end_step = convert_step(args.end)
 
     # Configure paths
-    data_dir = r"D:\Repos_git\Timeseries\stock_ml_project\stock-ml-project\data\signals"
-    file_name = "Cleaned_Signal_EURUSD_for_training_635_635_60000.csv"
-    test_file_path = r"D:\Repos_git\Timeseries\stock_ml_project\stock-ml-project\data\raw\GBPUSD_H1_20140525_20251021" \
-                     r".csv"
+    PROJECT_ROOT = find_project_root()
+    DATASETS_DIR = PROJECT_ROOT / "datasets"
+
+    if os.path.exists(DATASETS_DIR):
+        data_dir = DATASETS_DIR
+    else:
+        data_dir = r"D:\Repos_git\Make_Money_with_Tensorflow_2.0\projects\datasets"
+
+    training_file = "Cleaned_Signal_EURUSD_for_training_635_635_60000.csv"
+    test_file = os.path.join(data_dir, 'GBPUSD_H1_20140525_20251021.csv')
 
     # Create pipeline instance
     pipeline = SignalMLPipeline(
         data_dir_=data_dir,
-        file_name_=file_name,
-        test_file_path_=test_file_path,
+        file_name_=training_file,
+        test_file_path_=test_file,
         n_features=20
     )
 

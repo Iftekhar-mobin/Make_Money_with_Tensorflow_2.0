@@ -18,8 +18,8 @@ def extract_buy_sell_hold_features(df):
     df["sma50"] = df["close"].rolling(50).mean()
 
     df["ma_alignment"] = (
-        (df["sma10"] > df["sma20"]).astype(int) +
-        (df["sma20"] > df["sma50"]).astype(int)
+            (df["sma10"] > df["sma20"]).astype(int) +
+            (df["sma20"] > df["sma50"]).astype(int)
     )
 
     df["slope_20"] = df["close"].rolling(20).apply(
@@ -65,7 +65,7 @@ def extract_buy_sell_hold_features(df):
     df["dist_to_low"] = df["close"] - df["low"].rolling(20).min()
 
     df["bb_pos"] = (df["close"] - bb.bollinger_lband()) / (
-        (bb.bollinger_hband() - bb.bollinger_lband()) + 1e-9
+            (bb.bollinger_hband() - bb.bollinger_lband()) + 1e-9
     )
 
     # ========= REVERSAL FEATURES =========
@@ -88,32 +88,47 @@ def extract_buy_sell_hold_features(df):
 # ================================
 # 2️⃣ Add Sliding-Window Features for ALL Numeric Columns
 # ================================
-def add_price_window_features(df, windows=None):
-    if windows is None:
-        windows = [3, 5, 10, 20]
-    df = df.copy()
 
+def rolling_slope_fast(arr, window):
+    """
+    Fast rolling linear regression slope using analytical formula.
+    """
+    n = window
+    x = np.arange(n)
+    x_mean = x.mean()
+    x_var = ((x - x_mean) ** 2).sum()
+
+    slopes = np.full(len(arr), np.nan)
+
+    for i in range(n - 1, len(arr)):
+        y = arr[i - n + 1:i + 1]
+        y_mean = y.mean()
+        slopes[i] = ((x - x_mean) * (y - y_mean)).sum() / x_var
+
+    return slopes
+
+
+def add_price_window_features(df, windows):
+    df = df.copy()
     price_cols = ["open", "high", "low", "close", "volume"]
 
-    feature_dict = {}   # buffer to store all new columns
+    features = {}
 
     for col in price_cols:
+        data = df[col].to_numpy()
+
         for w in windows:
-            roll = df[col].rolling(w)
+            roll = pd.Series(data).rolling(w)
 
-            feature_dict[f"{col}_mean_{w}"] = roll.mean()
-            feature_dict[f"{col}_std_{w}"] = roll.std()
-            feature_dict[f"{col}_min_{w}"] = roll.min()
-            feature_dict[f"{col}_max_{w}"] = roll.max()
-            feature_dict[f"{col}_slope_{w}"] = roll.apply(
-                lambda x: np.polyfit(range(len(x)), x, 1)[0]
-                if len(x) == w else np.nan,
-                raw=False,
-            )
+            features[f"{col}_mean_{w}"] = roll.mean().to_numpy()
+            features[f"{col}_std_{w}"] = roll.std().to_numpy()
+            features[f"{col}_min_{w}"] = roll.min().to_numpy()
+            features[f"{col}_max_{w}"] = roll.max().to_numpy()
 
-    # join once → no fragmentation
-    features_df = pd.DataFrame(feature_dict, index=df.index)
+            # 🚀 Fast slope (NO rolling.apply)
+            features[f"{col}_slope_{w}"] = rolling_slope_fast(data, w)
 
+    features_df = pd.DataFrame(features, index=df.index)
     return pd.concat([df, features_df], axis=1)
 
 
@@ -122,7 +137,7 @@ def add_price_window_features(df, windows=None):
 # ================================
 def extract_all_features(df, windows=None):
     if windows is None:
-        windows = [3, 5, 10, 20]
+        windows = [10, 20, 50, 150]
     print('Please wait working with extract_buy_sell_hold_features ')
     df1 = extract_buy_sell_hold_features(df)
     print('#' * 80)

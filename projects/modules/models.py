@@ -1,6 +1,4 @@
-import joblib
 import pandas as pd
-import os
 import numpy as np
 from imblearn.over_sampling import SMOTE, ADASYN
 from sklearn.model_selection import StratifiedKFold, train_test_split, TimeSeriesSplit, KFold, cross_val_score
@@ -185,29 +183,6 @@ def xgbmodel_comparison_with_adasyn_smote(X_processed, y_mapped):
 
     best = max(results, key=lambda x: results[x][1])
     print("\n🔥 BEST METHOD (Macro F1):", best)
-
-
-def save_model(pipe, features, model):
-    models_path = os.path.join(os.getcwd(), 'models')
-
-    if os.path.exists(models_path):
-        joblib.dump(pipe, os.path.join(models_path, "preprocessing_pipe.pkl"))
-        joblib.dump(features, os.path.join(models_path, "selected_features.pkl"))
-        joblib.dump(model, os.path.join(models_path, "xgb_model.pkl"))
-    else:
-        raise OSError('Directory not found. Please download properly')
-
-
-def load_model():
-    models_path = os.path.join(os.getcwd(), 'models')
-
-    if os.path.exists(models_path):
-        pipe = joblib.load(os.path.join(models_path, "preprocessing_pipe.pkl"))
-        selected_features = joblib.load(os.path.join(models_path, "selected_features.pkl"))
-        model = joblib.load(os.path.join(models_path, "xgb_model.pkl"))
-        return pipe, selected_features, model
-    else:
-        raise OSError('Directory not found. Model directory missing.')
 
 
 def predict_with_new_dataset(X_new, pipe, model, test_df_features):

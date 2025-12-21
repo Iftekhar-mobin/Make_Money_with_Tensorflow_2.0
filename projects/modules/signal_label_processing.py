@@ -2,44 +2,58 @@ import numpy as np
 from scipy.signal import argrelextrema
 from ta.volatility import AverageTrueRange
 from ta.momentum import RSIIndicator
-from sklearn.linear_model import LinearRegression
 
 
 def filter_by_slope(df, look_ahead=24, slope_threshold=0):
+    df = df.copy()
     print(f"Before: {df['Signal'].value_counts()}")
-    lr = LinearRegression()
-    signals = df[df['Signal'] != 0].index.tolist()
-    for idx in signals:
-        pos = df.index.get_loc(idx)
-        if pos + look_ahead < len(df):
-            y = df['close'].iloc[pos:pos + look_ahead].values.reshape(-1, 1)
-            x = np.arange(len(y)).reshape(-1, 1)
-            lr.fit(x, y)
-            slope = lr.coef_.flatten()[0]
-            if df.loc[idx, 'Signal'] == 1 and slope <= slope_threshold:
-                df.loc[idx, 'Signal'] = 0
-            elif df.loc[idx, 'Signal'] == -1 and slope >= -slope_threshold:
-                df.loc[idx, 'Signal'] = 0
-    print(f"Filtering out Extra BUY and SELL signal with Linear regression slope values by Zero. "
-          f"{df['Signal'].value_counts()}")
+
+    s = df["Signal"].to_numpy()
+    close = df["close"].to_numpy()
+
+    n = look_ahead
+    x = np.arange(n)
+    x_mean = x.mean()
+    x_var = ((x - x_mean) ** 2).sum()
+
+    signal_idx = np.where(s != 0)[0]
+
+    for i in signal_idx:
+        if i + n >= len(close):
+            continue
+
+        y = close[i:i+n]
+        y_mean = y.mean()
+
+        # Fast LR slope
+        slope = ((x - x_mean) * (y - y_mean)).sum() / x_var
+
+        if s[i] == 1 and slope <= slope_threshold:
+            s[i] = 0
+        elif s[i] == -1 and slope >= -slope_threshold:
+            s[i] = 0
+
+    df["Signal"] = s
+    print(
+        "Filtering BUY/SELL by slope: ",
+        np.unique(s, return_counts=True)
+    )
     return df
-    
-# --- Generate extrema signals ---
+
+
 def generate_signal_only_extrema(df, cluster_length=30):
     df = df.copy()
-    
-    # Identify local maxima and minima
-    max_signal_indices = argrelextrema(df['close'].values, np.greater, order=cluster_length)[0]
-    min_signal_indices = argrelextrema(df['close'].values, np.less, order=cluster_length)[0]
 
-    # Initialize Signal column
-    df.loc[:, 'Signal'] = 0
-    df.loc[max_signal_indices, 'Signal'] = -1  # Sell Signal
-    df.loc[min_signal_indices, 'Signal'] = 1   # Buy Signal
-    
-    # df['Date'] = pd.to_datetime(df['Date'])
-    # df.set_index('Date', inplace=True)
-    
+    close = df["close"].to_numpy()
+    signal = np.zeros(len(df), dtype=np.int8)
+
+    max_idx = argrelextrema(close, np.greater, order=cluster_length)[0]
+    min_idx = argrelextrema(close, np.less, order=cluster_length)[0]
+
+    signal[max_idx] = -1   # Sell
+    signal[min_idx] = 1    # Buy
+
+    df["Signal"] = signal
     return df
 
 
@@ -61,41 +75,49 @@ def generate_consecutive_signal_label(df, col='Signal'):
 # Propagate signals consecutively
 def signal_propagate(df_signals):
     df = df_signals.copy()
-    current_signal = 0
-    for idx in df.index:
-        if df.loc[idx, 'Signal'] != 0:
-            current_signal = df.loc[idx, 'Signal']  # Update the current signal
-        df.loc[idx, 'Signal'] = current_signal  # Propagate the current signal
-    # Debugging Info
+
+    s = df["Signal"]
+    df["Signal"] = s.replace(0, np.nan).ffill().fillna(0).astype(int)
+
     print(f"Filtered Signals After Propagation: {df['Signal'].value_counts()}")
     return df
 
 
 def prior_signal_making_zero(df_signal, reset_length=5):
     df = df_signal.copy()
-    reset_indexes = set()
 
-    for i in range(1, len(df)):
-        if (df.iloc[i]['Signal'] == 1 and df.iloc[i-1]['Signal'] == -1) or \
-           (df.iloc[i]['Signal'] == -1 and df.iloc[i-1]['Signal'] == 1):
-            for j in range(i, i - reset_length - 1, -1):
-                if j >= 0:
-                    reset_indexes.add(j)
+    s = df["Signal"].to_numpy()
+    s_new = s.copy()
 
-    df.iloc[list(reset_indexes), df.columns.get_loc('Signal')] = 0
-    print(f"After nullify prior {reset_length} signal: {df['Signal'].value_counts()}")
+    # Detect sign changes (1 → -1 or -1 → 1)
+    flip_idx = np.where(s[1:] * s[:-1] == -1)[0] + 1
+
+    for i in flip_idx:
+        start = max(0, i - reset_length)
+        s_new[start:i+1] = 0
+
+    df["Signal"] = s_new
+    print(f"After nullify prior {reset_length} signal: {np.unique(s_new, return_counts=True)}")
     return df
 
 
 def shift_signals(df, delay=3):
-    """Shift signals forward by delay bars."""
-    shifted = df['Signal'].copy()
-    df.loc[:, 'Signal'] = 0
-    for idx in shifted[shifted != 0].index:
-        pos = df.index.get_loc(idx) + delay
-        if pos < len(df):
-            df.iloc[pos, df.columns.get_loc('Signal')] = shifted.loc[idx]
-    print(f"""Shift signals forward by delay {delay} bars.""")
+    """
+    Shift non-zero signals forward by `delay` bars (fast, vectorized).
+    """
+    df = df.copy()
+
+    s = df["Signal"].to_numpy()
+    shifted = s.copy()
+
+    # Reset all signals
+    s[:] = 0
+
+    if delay < len(s):
+        s[delay:] = shifted[:-delay]
+
+    df["Signal"] = s
+    print(f"Shift signals forward by delay {delay} bars.")
     return df
 
 
