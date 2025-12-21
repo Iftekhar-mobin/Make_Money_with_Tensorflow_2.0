@@ -13,12 +13,8 @@ from modules.preprocessing import (
 )
 from modules.chart import generate_signal_plot
 from modules.signal_label_processing import (
-    generate_signal_only_extrema,
-    shift_signals,
-    signal_propagate,
-    remove_low_volatility_signals,
-    filter_by_slope,
-    prior_signal_making_zero
+    prepare_signal,
+    visualize_dataset
 )
 from modules.feature_generate import extract_all_features
 from modules.feature_selection import select_best_features
@@ -42,23 +38,6 @@ from modules.utility import (
 # ---------------------------
 # VISUALIZATION
 # ---------------------------
-def visualize_dataset(df, processed, limit=3000):
-    df.reset_index(inplace=True, drop=True)
-    generate_signal_plot(df, val_limit=limit)
-    generate_signal_plot(generate_signal_only_extrema(df), val_limit=limit)
-    generate_signal_plot(shift_signals(df), val_limit=limit)
-    generate_signal_plot(signal_propagate(shift_signals(df)), val_limit=limit)
-
-    # processed = remove_low_volatility_signals(
-    #     prior_signal_making_zero(
-    #         signal_propagate(
-    #             shift_signals(df)
-    #         )
-    #     )
-    # )
-    generate_signal_plot(processed, val_limit=limit)
-    generate_signal_plot(filter_by_slope(processed), val_limit=limit)
-    generate_signal_plot(filter_by_slope(processed, look_ahead=30), val_limit=limit)
 
 
 class SignalMLPipeline:
@@ -169,16 +148,7 @@ class SignalMLPipeline:
     def generate_labels(self):
         print("Generating labels from raw data...")
 
-        self.dataset = filter_by_slope(
-            remove_low_volatility_signals(
-                prior_signal_making_zero(
-                    signal_propagate(
-                        shift_signals(self.raw_data)
-                    )
-                )
-            )
-        )
-
+        self.dataset = prepare_signal(self.raw_data)
         save_path = os.path.join(self.data_dir, 'cleaned_generated_signal.csv')
 
         # Ensure directory exists
