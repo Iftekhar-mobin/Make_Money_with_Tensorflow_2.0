@@ -5,6 +5,8 @@ from sklearn.impute import SimpleImputer
 
 
 def rename_col(df):
+    if 'spread' in df.columns:
+        df.drop(columns=['spread'], inplace=True)
     if 'time' in df.columns:
         # Convert Unix timestamps to datetime format
         df['Date'] = pd.to_datetime(df['time'], unit='s')

@@ -184,10 +184,10 @@ def extract_all_features(df, windows=None):
     print('Please wait working with extract_buy_sell_hold_features ')
     df1 = extract_buy_sell_hold_features(df)
     print('#' * 80)
-    print('Please wait working with add_price_window_features ')
-    df2 = add_price_window_features(df1, windows)
-    print('#' * 80)
-    return df2
+    # print('Please wait working with add_price_window_features ')
+    # df2 = add_price_window_features(df1, windows)
+    # print('#' * 80)
+    return df1
 
 # ================================
 # Usage Example

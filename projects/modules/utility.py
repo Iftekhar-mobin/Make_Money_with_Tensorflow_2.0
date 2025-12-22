@@ -1,27 +1,6 @@
 import os
 import joblib
-import pickle
 from pathlib import Path
-
-
-def save_selected_features(selected_features, file_name="selected_features.pkl"):
-    dir_path = "models"
-    os.makedirs(dir_path, exist_ok=True)
-
-    path = os.path.join(dir_path, file_name)
-    with open(path, "wb") as f:
-        pickle.dump(list(selected_features), f)
-
-
-def load_selected_features(file_name="selected_features.pkl"):
-    dir_path = "models"
-    path = os.path.join(dir_path, file_name)
-
-    if not os.path.exists(path):
-        return None
-
-    with open(path, "rb") as f:
-        return pickle.load(f)
 
 
 def save_model(pipe, features, model):
