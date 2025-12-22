@@ -16,7 +16,7 @@ from modules.signal_label_processing import (
     prepare_signal,
     visualize_dataset
 )
-from modules.feature_generate import extract_all_features
+from modules.feature_generate import extract_all_features, extract_fast_features
 from modules.feature_selection import select_best_features
 from modules.models import (
     xgbmodel,
@@ -162,7 +162,8 @@ class SignalMLPipeline:
     # ---------------------------
     def extract_features(self):
         print("Extracting features...")
-        df_feat = extract_all_features(self.dataset)
+        # df_feat = extract_all_features(self.dataset)
+        df_feat = extract_fast_features(self.dataset)
         df_feat = handling_nan_after_feature_generate(df_feat)
         self.df_features = df_feat
 
@@ -183,6 +184,7 @@ class SignalMLPipeline:
         self.selected_features = list(selected_features)
         save_selected_features(self.selected_features)
         self.pipe = pipe
+        save_selected_features(self.pipe, file_name='preprocessor_pipe.pkl')
 
         # Save internally
         self.X = X
@@ -221,7 +223,6 @@ class SignalMLPipeline:
     # ---------------------------
     def save(self):
         save_model(self.pipe, self.selected_features, self.model)
-        print("Model saved successfully.")
 
     def load(self):
         self.pipe, self.selected_features, self.model = load_model()
@@ -236,7 +237,8 @@ class SignalMLPipeline:
         test_df = rename_col(test_df)
 
         print("Extracting features from test dataset...")
-        test_df_features = extract_all_features(test_df.iloc[-10000:, :])
+        # test_df_features = extract_all_features(test_df.iloc[-10000:, :])
+        test_df_features = extract_fast_features(test_df.iloc[-10000:, :])
         test_df_features = handling_nan_after_feature_generate(test_df_features)
 
         if self.selected_features:
@@ -244,6 +246,7 @@ class SignalMLPipeline:
         else:
             self.selected_features = load_selected_features()
             x = test_df_features[self.selected_features].copy()
+            self.pipe = load_selected_features(file_name='preprocessor_pipe.pkl')
 
         print("Predicting signals...")
         result_df = predict_with_new_dataset(

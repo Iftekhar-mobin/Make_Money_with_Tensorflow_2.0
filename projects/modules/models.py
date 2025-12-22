@@ -52,63 +52,26 @@ def xgbmodel_adasyn(X_processed, y_mapped):
     # ===============================
     # 3. BALANCING MINORITY CLASSES
     # ===============================
-    # sm = ADASYN()  # SMOTE also works
-    #
-    # X_train_bal, y_train_bal = sm.fit_resample(X_train, y_train)
-    #
-    # print("Class distribution BEFORE:", y_train.value_counts().to_dict())
-    # print("Class distribution AFTER :", y_train_bal.value_counts().to_dict())
+    sm = ADASYN()  # SMOTE also works
+
+    X_train_bal, y_train_bal = sm.fit_resample(X_train, y_train)
+
+    print("Class distribution BEFORE:", y_train.value_counts().to_dict())
+    print("Class distribution AFTER :", y_train_bal.value_counts().to_dict())
 
     # ===============================
     # 4. TRAIN FINAL MODEL
     # ===============================
-    # xgb_model = XGBClassifier(
-    #     n_estimators=300,
-    #     max_depth=6,
-    #     learning_rate=0.05,
-    #     subsample=0.8,
-    #     colsample_bytree=0.8,
-    #     objective='multi:softmax'
-    # )
-
-    # class distribution example
-    # 0: HOLD (majority), 1: SELL, 2: BUY
-    class_weights = {
-        0: 1.0,
-        1: 3.0,
-        2: 3.0
-    }
-
     xgb_model = XGBClassifier(
-        n_estimators=500,
-        max_depth=5,
-        learning_rate=0.03,
+        n_estimators=300,
+        max_depth=6,
+        learning_rate=0.05,
         subsample=0.8,
         colsample_bytree=0.8,
-
-        objective="multi:softprob",  # IMPORTANT
-        num_class=3,
-
-        eval_metric="mlogloss",
-        reg_alpha=0.5,
-        reg_lambda=1.5,
-        min_child_weight=5,
-
-        tree_method="hist",
-        random_state=42
+        objective='multi:softmax'
     )
 
-    sample_weights = np.array([class_weights[y] for y in y_train])
-
-    xgb_model.fit(
-        X_train,
-        y_train,
-        sample_weight=sample_weights,
-        eval_set=[(X_train, y_train)],
-        verbose=False
-    )
-
-    # xgb_model.fit(X_train_bal, y_train_bal)
+    xgb_model.fit(X_train_bal, y_train_bal)
 
     # ===============================
     # 5. TEST RESULTS (20% DATA)

@@ -12,59 +12,78 @@ import numpy as np
 # --------------------------
 def preprocess_features(X):
     pipe = Pipeline([
-        ("imputer", SimpleImputer(strategy="mean")),
-        ("scaler", StandardScaler())
+        ("imputer", SimpleImputer(strategy="median")),  # faster & robust
+        ("scaler", StandardScaler(with_mean=False))  # faster for large data
     ])
     Xp = pipe.fit_transform(X)
-    feature_names = X.columns.tolist()
-    return Xp, feature_names, pipe
+    return Xp, X.columns.to_numpy(), pipe
 
 
 # --------------------------
-# 2. L1 selector
+# 2. L1 selector (FAST)
 # --------------------------
-def l1_selector(X, y, C=0.05):
+def l1_selector(X, y, C=0.1):
     model = LogisticRegression(
-        penalty="l1", solver="liblinear", C=C, max_iter=3000
+        penalty="l1",
+        solver="saga",
+        C=0.1,
+        max_iter=2000,  # ⬆ small increase
+        tol=1e-3,  # ⬅ looser tolerance (faster)
+        n_jobs=-1
     )
-    selector = SelectFromModel(model)
-    selector.fit(X, y)
-    return selector.get_support()
+
+    model.fit(X, y)
+    return np.abs(model.coef_).sum(axis=0) > 1e-6
 
 
 # --------------------------
-# 3. Tree-based selector
+# 3. Mutual Information (ONCE)
 # --------------------------
-def tree_selector(X, y, k=50):
-    model = RandomForestClassifier(n_estimators=200, random_state=42)
-    selector = SelectKBest(mutual_info_classif, k=min(k, X.shape[1]))
-    selector.fit(X, y)
-    return selector.get_support()
+def mi_selector(X, y, k):
+    mi = mutual_info_classif(X, y, n_neighbors=3, random_state=42)
+    idx = np.argsort(mi)[-k:]
+    mask = np.zeros(X.shape[1], dtype=bool)
+    mask[idx] = True
+    return mask
 
 
 # --------------------------
-# 4. Combined selection
+# 4. Random Forest selector (FAST)
 # --------------------------
-def combined_feature_selection(X, y, feature_names, k_best):
+def rf_selector(X, y, k):
+    rf = RandomForestClassifier(
+        n_estimators=80,  # 🔥 reduced
+        max_depth=12,
+        n_jobs=-1,
+        random_state=42
+    )
+    rf.fit(X, y)
+    idx = np.argsort(rf.feature_importances_)[-k:]
+    mask = np.zeros(X.shape[1], dtype=bool)
+    mask[idx] = True
+    return mask
+
+
+# --------------------------
+# 5. Combined selection
+# --------------------------
+def combined_feature_selection(X, y, feature_names, k):
     l1_mask = l1_selector(X, y)
-    tree_mask = tree_selector(X, y, k=k_best)
-    mi_mask = SelectKBest(mutual_info_classif, k=k_best).fit(X, y).get_support()
+    mi_mask = mi_selector(X, y, k)
+    rf_mask = rf_selector(X, y, k)
 
-    votes = l1_mask.astype(int) + tree_mask.astype(int) + mi_mask.astype(int)
-    selected = np.array(feature_names)[votes >= 2]  # Keep features with ≥2 votes
-    masks = {"l1": l1_mask, "tree": tree_mask, "mi": mi_mask}
+    votes = l1_mask.astype(int) + mi_mask.astype(int) + rf_mask.astype(int)
+
+    selected = feature_names[votes >= 2]
+    masks = {"l1": l1_mask, "mi": mi_mask, "rf": rf_mask}
 
     return selected, votes, masks
 
 
 # --------------------------
-# 5. Master pipeline
+# 6. Master pipeline
 # --------------------------
 def select_best_features(X, y, k_best):
-    # Preprocess (fixes NaN)
     Xp, feature_names, preproc = preprocess_features(X)
-
-    # Feature selection
     selected, votes, masks = combined_feature_selection(Xp, y, feature_names, k_best)
-
     return selected, votes, masks, preproc

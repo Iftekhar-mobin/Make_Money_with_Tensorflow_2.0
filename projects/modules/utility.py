@@ -31,6 +31,8 @@ def save_model(pipe, features, model):
         joblib.dump(pipe, os.path.join(models_path, "preprocessing_pipe.pkl"))
         joblib.dump(features, os.path.join(models_path, "selected_features.pkl"))
         joblib.dump(model, os.path.join(models_path, "xgb_model.pkl"))
+        print(f"Model saved successfully at {models_path}.")
+
     else:
         raise OSError('Directory not found. Please download properly')
 
