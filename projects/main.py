@@ -283,7 +283,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--start", type=str, default="1",
                         help="Start step (number or name)")
-    parser.add_argument("--end", type=str, default="7",
+    parser.add_argument("--end", type=str, default="9",
                         help="End step (number or name)")
 
     args = parser.parse_args()
