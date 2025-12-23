@@ -202,11 +202,12 @@ class SignalMLPipeline:
         print('Training raw XGB model')
         model = xgbmodel(x_processed, y_mapped)
 
+        print("Running K-Fold evaluation...")
+        xgbmodel_kfold(model, x_processed, y_mapped)
+
         # print("Training XGBoost (ADASYN)...")
         # model = xgbmodel_adasyn(x_processed, y_mapped)
         #
-        # print("Running K-Fold evaluation...")
-        # xgbmodel_kfold(model, x_processed, y_mapped)
         #
         # print("Comparing ADASYN & SMOTE performance...")
         # xgbmodel_comparison_with_adasyn_smote(x_processed, y_mapped)

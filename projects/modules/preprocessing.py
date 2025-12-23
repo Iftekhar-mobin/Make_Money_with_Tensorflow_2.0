@@ -5,10 +5,14 @@ from sklearn.impute import SimpleImputer
 
 
 def rename_col(df):
-    if 'spread' in df.columns:
-        df.drop(columns=['spread'], inplace=True)
+    # Columns to drop if they exist
+    drop_cols = ['spread', 'real_volume']
+
+    # Drop safely
+    df.drop(columns=[c for c in drop_cols if c in df.columns], inplace=True)
+
+    # Convert time → Date if exists
     if 'time' in df.columns:
-        # Convert Unix timestamps to datetime format
         df['Date'] = pd.to_datetime(df['time'], unit='s')
 
     # if 'volume' not in df.columns: df.rename(columns={'open':'Open', 'high':'High', 'low':'Low', 'close':'Close',

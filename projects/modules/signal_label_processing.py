@@ -176,6 +176,8 @@ def remove_low_volatility_signals(df, threshold_percentile=20, atr_period=14):
     low_volatility = df['ATR'] < atr_threshold
     df.loc[low_volatility, 'Signal'] = 0
 
+    df.drop(columns=['ATR'], inplace=True)
+
     print(f"Low-volatility threshold (ATR percentile {threshold_percentile}%) = {atr_threshold:.6f}")
     print(f"After nullify prior signal: {df['Signal'].value_counts()}")
     return df
