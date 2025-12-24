@@ -1,5 +1,8 @@
 import os
 import joblib
+import argparse
+import uuid
+from datetime import datetime
 from pathlib import Path
 
 
@@ -36,4 +39,47 @@ def find_project_root(marker=".project_root"):
     raise RuntimeError("Project root not found")
 
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ("yes", "true", "t", "1"):
+        return True
+    if v.lower() in ("no", "false", "f", "0"):
+        return False
+    raise argparse.ArgumentTypeError("Boolean value expected.")
+
+
+def create_run_id():
+    return f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+
+
+def prepare_report_dir(report_dir):
+    os.makedirs(report_dir, exist_ok=True)
+
+
+def save_classification_report(
+    report_text,
+    run_id,
+    report_dir="reports",
+    metadata=None
+):
+    prepare_report_dir(report_dir)
+
+    path = os.path.join(
+        report_dir,
+        f"classification_report_{run_id}.txt"
+    )
+
+    with open(path, "w") as f:
+        f.write("XGBoost Classification Report\n")
+        f.write(f"Run ID: {run_id}\n")
+
+        if metadata:
+            for k, v in metadata.items():
+                f.write(f"{k}: {v}\n")
+
+        f.write("\n")
+        f.write(report_text)
+
+    return path
 

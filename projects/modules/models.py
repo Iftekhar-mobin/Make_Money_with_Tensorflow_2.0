@@ -6,9 +6,11 @@ from sklearn.metrics import classification_report, f1_score, accuracy_score
 from xgboost import XGBClassifier
 
 from modules.validation import evaluate_oversampler, kfold_evaluate
+from modules.utility import save_classification_report, create_run_id
 
 
-def xgbmodel(X_processed, y_mapped):
+def xgbmodel(X_processed, y_mapped, sample_weight=None, report_dir="reports"):
+    run_id = create_run_id()
     # ------------------------------------
     # 2. 80-20 chronological split
     # ------------------------------------
@@ -29,16 +31,34 @@ def xgbmodel(X_processed, y_mapped):
     # ------------------------------------
     # 4. Fit on training data
     # ------------------------------------
-    xgb_model.fit(X_train, y_train)
+
+    if sample_weight is not None:
+        xgb_model.fit(X_train, y_train, sample_weight=sample_weight[:len(y_train)])
+    else:
+        xgb_model.fit(X_train, y_train)
 
     # ------------------------------------
     # 5. Evaluate on test (20%)
     # ------------------------------------
     y_pred = xgb_model.predict(X_test)
+    report = classification_report(y_test, y_pred, target_names=['Hold', 'Sell', 'Buy'])
     print("====== 20% Test Classification Report ======")
-    print(classification_report(y_test, y_pred))
+    print(report)
 
-    return xgb_model
+    report_path = save_classification_report(
+        report_text=report,
+        run_id=run_id,
+        report_dir=report_dir,
+        metadata={
+            "Train size": len(X_train),
+            "Test size": len(X_test),
+            "Model": "XGBoost"
+        }
+    )
+
+    print(f"[✓] Report saved → {report_path}")
+
+    return xgb_model, run_id
 
 
 def xgbmodel_adasyn(X_processed, y_mapped):

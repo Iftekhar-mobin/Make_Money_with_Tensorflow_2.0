@@ -16,7 +16,7 @@ from modules.signal_label_processing import (
     prepare_signal,
     visualize_dataset
 )
-from modules.feature_generate import extract_all_features, extract_fast_features
+from modules.feature_generate import extract_fast_features
 from modules.feature_selection import select_best_features
 from modules.models import (
     xgbmodel,
@@ -29,7 +29,8 @@ from modules.simulator import run_backtesting_simulator
 from modules.utility import (
     load_model,
     save_model,
-    find_project_root
+    find_project_root,
+    str2bool
 )
 
 
@@ -44,8 +45,8 @@ class SignalMLPipeline:
     feature extraction, feature selection and model training/testing.
     """
 
-    def __init__(self, data_dir_, file_name_, test_file_path_, n_features=20):
-
+    def __init__(self, data_dir_, file_name_, test_file_path_, n_features=20, visualize=False):
+        self.visualize = visualize
         self.y = None
         self.X = None
         self.data_dir = data_dir_
@@ -78,10 +79,15 @@ class SignalMLPipeline:
     # VISUALIZATION WRAPPER
     # ---------------------------
     def visualize_current_dataset(self):
+        if not self.visualize:
+            print(">>> Visualization disabled (use --visualize true)")
+            return
+
         print(">>> Visualizing dataset with all preprocessing steps...")
-        if not hasattr(self, "dataset"):
+        if not hasattr(self, "dataset") or self.dataset is None:
             print("[!] dataset missing → generating labels")
             self.generate_labels()
+
         visualize_dataset(self.raw_data, self.dataset)
 
     # wrappers for functions with return values
@@ -160,7 +166,6 @@ class SignalMLPipeline:
     # ---------------------------
     def extract_features(self):
         print("Extracting features...")
-        # df_feat = extract_all_features(self.dataset)
         df_feat = extract_fast_features(self.dataset)
         df_feat = handling_nan_after_feature_generate(df_feat)
         self.df_features = df_feat
@@ -197,13 +202,17 @@ class SignalMLPipeline:
     def train_model(self, X, y):
         print("Preparing dataset for model training...")
         x_selected = X[self.selected_features]
-        x_processed, y_mapped, pipe = prepare_dataset_for_model(x_selected, y)
 
-        print('Training raw XGB model')
-        model = xgbmodel(x_processed, y_mapped)
+        # print('Training raw XGB model')
+        # x_processed, y_mapped, pipe = prepare_dataset_for_model(x_selected, y)
+        # model, _ = xgbmodel(x_processed, y_mapped)
 
-        print("Running K-Fold evaluation...")
-        xgbmodel_kfold(model, x_processed, y_mapped)
+        x_processed, y_mapped, pipe, sample_weight_ = prepare_dataset_for_model(x_selected, y, sample_weight=True)
+        print('Training raw XGB model with sample weight')
+        model, _ = xgbmodel(x_processed, y_mapped, sample_weight_, report_dir='reports')
+
+        # print("Running K-Fold evaluation...")
+        # xgbmodel_kfold(model, x_processed, y_mapped)
 
         # print("Training XGBoost (ADASYN)...")
         # model = xgbmodel_adasyn(x_processed, y_mapped)
@@ -229,15 +238,15 @@ class SignalMLPipeline:
     # TESTING ON NEW DATA
     # ---------------------------
     def test_new_dataset(self):
-        print("Loading external test dataset...")
+        print(f"Loading external test dataset...{self.test_file_path}")
         test_df = load_test_dataset(self.test_file_path)
         test_df = rename_col(test_df)
 
         print("Extracting features from test dataset...")
-        # test_df_features = extract_all_features(test_df.iloc[-10000:, :])
         test_df_features = extract_fast_features(test_df.iloc[-10000:, :])
         test_df_features = handling_nan_after_feature_generate(test_df_features)
 
+        print(f'Using the selected features {self.selected_features}')
         if self.selected_features:
             x = test_df_features[self.selected_features].copy()
         else:
@@ -281,10 +290,9 @@ class SignalMLPipeline:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Signal ML Pipeline")
 
-    parser.add_argument("--start", type=str, default="1",
-                        help="Start step (number or name)")
-    parser.add_argument("--end", type=str, default="9",
-                        help="End step (number or name)")
+    parser.add_argument("--start", type=str, default="1", help="Start step (number or name)")
+    parser.add_argument("--end", type=str, default="9", help="End step (number or name)")
+    parser.add_argument("--visualize", type=str2bool, default=False, help="Enable visualization (true/false)")
 
     args = parser.parse_args()
 
@@ -327,7 +335,8 @@ if __name__ == "__main__":
         data_dir_=data_dir,
         file_name_=training_file,
         test_file_path_=test_file,
-        n_features=20
+        n_features=20,
+        visualize=args.visualize
     )
 
     # Run with step control

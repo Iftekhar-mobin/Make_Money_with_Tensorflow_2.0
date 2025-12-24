@@ -1,4 +1,6 @@
 import pandas as pd
+import numpy as np
+from sklearn.utils.class_weight import compute_class_weight
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.impute import SimpleImputer
@@ -39,7 +41,7 @@ def handling_nan_after_feature_generate(df_f):
     return df_f_no_NAN
 
 
-def prepare_dataset_for_model(X_selected, y):
+def prepare_dataset_for_model(X_selected, y, sample_weight=False):
     # Refit preprocessing only on selected features
     pipe = Pipeline([
         ("imputer", SimpleImputer(strategy="mean")),
@@ -49,4 +51,21 @@ def prepare_dataset_for_model(X_selected, y):
     X_processed = pipe.fit_transform(X_selected)
     y_mapped = y.map({-1: 1, 0: 0, 1: 2})
 
-    return X_processed, y_mapped, pipe
+    if not sample_weight:
+        return X_processed, y_mapped, pipe
+    else:
+        return X_processed, y_mapped, pipe, class_weight_balance(y)
+
+
+def class_weight_balance(y):
+    classes = np.array([-1, 0, 1])
+    weights = compute_class_weight(
+        class_weight="balanced",
+        classes=classes,
+        y=y
+    )
+
+    class_weight = dict(zip(classes, weights))
+    sample_weight = np.array([class_weight[label] for label in y])
+    return sample_weight
+
