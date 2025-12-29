@@ -42,7 +42,11 @@ def visualize_dataset(df, processed, limit=3000, test_visualize=False):
         generate_signal_plot(filter_by_slope(processed, look_ahead=30), val_limit=limit)
 
 
-def filter_by_slope(df, look_ahead=24, slope_threshold=0):
+# look_ahead	Behavior
+# Small (5–10)	Sensitive, fast, noisy
+# Medium (20–30)	Balanced
+# Large (50–100)	Very strict, slow
+def filter_by_slope(df, look_ahead=13, slope_threshold=0):
     df = df.copy()
     print(f"Before: {df['Signal'].value_counts()}")
 
