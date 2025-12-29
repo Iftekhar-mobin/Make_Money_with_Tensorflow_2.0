@@ -10,7 +10,8 @@ from modules.utility import save_classification_report, create_run_id
 from modules.preprocessing import probability_mapping
 
 
-def xgbmodel(X_processed, y_mapped, sample_weight=None, report_dir="reports", decision_threshold=0.8):
+def xgbmodel(X_processed, y_mapped, sample_weight=None, report_dir="reports", decision_threshold=80,
+             decision_prob=False):
     run_id = create_run_id()
     # ------------------------------------
     # 2. 80-20 chronological split
@@ -50,11 +51,13 @@ def xgbmodel(X_processed, y_mapped, sample_weight=None, report_dir="reports", de
     # ------------------------------------
     # 5. Evaluate on test (20%) normal prediction
     # ------------------------------------
-    y_pred = xgb_model.predict(X_test)
 
-    # probability based prediction
-    proba = xgb_model.predict_proba(X_test)
-    y_pred = probability_mapping(proba, decision_threshold=decision_threshold)
+    if decision_prob:
+        # probability based prediction
+        proba = xgb_model.predict_proba(X_test)
+        y_pred = probability_mapping(proba, decision_threshold=decision_threshold)
+    else:
+        y_pred = xgb_model.predict(X_test)
 
     report = classification_report(
         y_test, y_pred,
@@ -189,7 +192,7 @@ def xgbmodel_comparison_with_adasyn_smote(X_processed, y_mapped):
     print("\n🔥 BEST METHOD (Macro F1):", best)
 
 
-def predict_with_new_dataset(X_new, pipe, model, test_df_features, decision_threshold=0.8):
+def predict_with_new_dataset(X_new, pipe, model, test_df_features, decision_threshold=80, decision_prob=False):
     # pipe = loaded preprocessing pipeline
     X_new_processed = pipe.transform(X_new)
     y_pred = model.predict(X_new_processed)
@@ -199,7 +202,9 @@ def predict_with_new_dataset(X_new, pipe, model, test_df_features, decision_thre
 
     # probability based mapping
     proba = model.predict_proba(X_new)
-    y_pred = probability_mapping(proba, decision_threshold)
+
+    if decision_prob:
+        y_pred = probability_mapping(proba, decision_threshold)
 
     y_pred = np.array(y_pred).astype(int)
     # Map your 3 classes to (-1, 0, 1)

@@ -19,23 +19,27 @@ def prepare_signal(raw_data):
     return dataset
 
 
-def visualize_dataset(df, processed, limit=3000):
+def visualize_dataset(df, processed, limit=3000, test_visualize=False):
     df.reset_index(inplace=True, drop=True)
-    generate_signal_plot(df, val_limit=limit)
-    generate_signal_plot(generate_signal_only_extrema(df), val_limit=limit)
-    generate_signal_plot(shift_signals(df), val_limit=limit)
-    generate_signal_plot(signal_propagate(shift_signals(df)), val_limit=limit)
+    if test_visualize:
+        generate_signal_plot(filter_by_slope(df, look_ahead=30), val_limit=limit)
+        generate_signal_plot(remove_low_volatility_signals(processed))
+    else:
+        generate_signal_plot(df, val_limit=limit)
+        generate_signal_plot(generate_signal_only_extrema(df), val_limit=limit)
+        generate_signal_plot(shift_signals(df), val_limit=limit)
+        generate_signal_plot(signal_propagate(shift_signals(df)), val_limit=limit)
 
-    # processed = remove_low_volatility_signals(
-    #     prior_signal_making_zero(
-    #         signal_propagate(
-    #             shift_signals(df)
-    #         )
-    #     )
-    # )
-    generate_signal_plot(processed, val_limit=limit)
-    generate_signal_plot(filter_by_slope(processed), val_limit=limit)
-    generate_signal_plot(filter_by_slope(processed, look_ahead=30), val_limit=limit)
+        # processed = remove_low_volatility_signals(
+        #     prior_signal_making_zero(
+        #         signal_propagate(
+        #             shift_signals(df)
+        #         )
+        #     )
+        # )
+        generate_signal_plot(processed, val_limit=limit)
+        generate_signal_plot(filter_by_slope(processed), val_limit=limit)
+        generate_signal_plot(filter_by_slope(processed, look_ahead=30), val_limit=limit)
 
 
 def filter_by_slope(df, look_ahead=24, slope_threshold=0):
