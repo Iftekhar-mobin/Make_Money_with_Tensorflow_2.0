@@ -22,10 +22,19 @@ def xgbmodel(X_processed, y_mapped, sample_weight=None, report_dir="reports"):
     # 3. Model
     # ------------------------------------
     xgb_model = XGBClassifier(
-        n_estimators=300,
-        max_depth=6,
-        learning_rate=0.05,
-        eval_metric="mlogloss"
+        n_estimators=600,
+        max_depth=4,
+        learning_rate=0.03,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        min_child_weight=10,
+        gamma=0.2,
+        reg_alpha=0.1,
+        reg_lambda=1.0,
+        objective="multi:softmax",
+        num_class=3,
+        eval_metric="mlogloss",
+        tree_method="hist"
     )
 
     # ------------------------------------
@@ -178,7 +187,7 @@ def predict_with_new_dataset(X_new, pipe, model, test_df_features):
 
     y_pred = np.array(y_pred).astype(int)
     # Map your 3 classes to (-1, 0, 1)
-    mapping = {0: 0, 1: -1, 2: 1}
+    mapping = {0: 0, 1: 1, 2: -1}
     y_pred_labels = pd.Series(y_pred).map(mapping)
 
     # Fix index mismatch

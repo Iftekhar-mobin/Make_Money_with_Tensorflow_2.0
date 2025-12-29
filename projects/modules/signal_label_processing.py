@@ -6,15 +6,16 @@ from modules.chart import generate_signal_plot
 
 
 def prepare_signal(raw_data):
-    dataset = filter_by_slope(
-        remove_low_volatility_signals(
-            prior_signal_making_zero(
-                signal_propagate(
-                    shift_signals(raw_data)
-                )
-            )
-        )
-    )
+    dataset = generate_signal_only_extrema(raw_data)
+    #     filter_by_slope(
+    #     remove_low_volatility_signals(
+    #         prior_signal_making_zero(
+    #             signal_propagate(
+    #                 shift_signals(raw_data)
+    #             )
+    #         )
+    #     )
+    # )
     return dataset
 
 

@@ -54,11 +54,11 @@ def prepare_dataset_for_model(X_selected, y, sample_weight=False):
     if not sample_weight:
         return X_processed, y_mapped, pipe
     else:
-        return X_processed, y_mapped, pipe, class_weight_balance(y)
+        return X_processed, y_mapped, pipe, class_weight_balance(y_mapped)
 
 
 def class_weight_balance(y):
-    classes = np.array([-1, 0, 1])
+    classes = np.array([0, 1, 2])
     weights = compute_class_weight(
         class_weight="balanced",
         classes=classes,
