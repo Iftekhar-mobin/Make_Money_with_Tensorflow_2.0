@@ -7,9 +7,10 @@ from xgboost import XGBClassifier
 
 from modules.validation import evaluate_oversampler, kfold_evaluate
 from modules.utility import save_classification_report, create_run_id
+from modules.preprocessing import probability_mapping
 
 
-def xgbmodel(X_processed, y_mapped, sample_weight=None, report_dir="reports"):
+def xgbmodel(X_processed, y_mapped, sample_weight=None, report_dir="reports", decision_threshold=0.8):
     run_id = create_run_id()
     # ------------------------------------
     # 2. 80-20 chronological split
@@ -47,10 +48,21 @@ def xgbmodel(X_processed, y_mapped, sample_weight=None, report_dir="reports"):
         xgb_model.fit(X_train, y_train)
 
     # ------------------------------------
-    # 5. Evaluate on test (20%)
+    # 5. Evaluate on test (20%) normal prediction
     # ------------------------------------
     y_pred = xgb_model.predict(X_test)
-    report = classification_report(y_test, y_pred, target_names=['Hold', 'Sell', 'Buy'])
+
+    # probability based prediction
+    proba = xgb_model.predict_proba(X_test)
+    y_pred = probability_mapping(proba, decision_threshold=decision_threshold)
+
+    report = classification_report(
+        y_test, y_pred,
+        labels=[0, 1, 2],
+        target_names=["Hold", "Sell", "Buy"],
+        digits=4,
+        zero_division=0
+    )
     print("====== 20% Test Classification Report ======")
     print(report)
 
@@ -177,7 +189,7 @@ def xgbmodel_comparison_with_adasyn_smote(X_processed, y_mapped):
     print("\n🔥 BEST METHOD (Macro F1):", best)
 
 
-def predict_with_new_dataset(X_new, pipe, model, test_df_features):
+def predict_with_new_dataset(X_new, pipe, model, test_df_features, decision_threshold=0.8):
     # pipe = loaded preprocessing pipeline
     X_new_processed = pipe.transform(X_new)
     y_pred = model.predict(X_new_processed)
@@ -185,8 +197,13 @@ def predict_with_new_dataset(X_new, pipe, model, test_df_features):
     result = dict(zip(unique, counts))
     print(result, len(y_pred), len(test_df_features))
 
+    # probability based mapping
+    proba = model.predict_proba(X_new)
+    y_pred = probability_mapping(proba, decision_threshold)
+
     y_pred = np.array(y_pred).astype(int)
     # Map your 3 classes to (-1, 0, 1)
+    # Intentionally mapping mistakes were doing ....... resulting impressive outcome
     mapping = {0: 0, 1: 1, 2: -1}
     y_pred_labels = pd.Series(y_pred).map(mapping)
 

@@ -33,6 +33,8 @@ from modules.utility import (
     str2bool
 )
 
+DECISION_CONF = 80
+
 
 # ---------------------------
 # VISUALIZATION
@@ -209,7 +211,7 @@ class SignalMLPipeline:
 
         x_processed, y_mapped, pipe, sample_weight_ = prepare_dataset_for_model(x_selected, y, sample_weight=True)
         print('Training raw XGB model with sample weight')
-        model, _ = xgbmodel(x_processed, y_mapped, sample_weight_, report_dir='reports')
+        model, _ = xgbmodel(x_processed, y_mapped, sample_weight_, report_dir='reports', decision_threshold=DECISION_CONF)
 
         # print("Running K-Fold evaluation...")
         # xgbmodel_kfold(model, x_processed, y_mapped)
@@ -259,7 +261,7 @@ class SignalMLPipeline:
         print("Predicting signals...")
         result_df = predict_with_new_dataset(
             x, self.pipe, self.model,
-            test_df_features[self.selected_features]
+            test_df_features[self.selected_features], decision_threshold=DECISION_CONF
         )
         # Add 'close' column as an additional feature for plotting result
         result_df['close'] = test_df_features['close']

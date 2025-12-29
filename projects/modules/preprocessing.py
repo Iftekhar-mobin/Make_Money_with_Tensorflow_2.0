@@ -57,6 +57,21 @@ def prepare_dataset_for_model(X_selected, y, sample_weight=False):
         return X_processed, y_mapped, pipe, class_weight_balance(y_mapped)
 
 
+def probability_mapping(proba, decision_threshold=97):
+    buy_prob = proba[:, 2]
+    sell_prob = proba[:, 1]
+
+    buy_thr = np.percentile(buy_prob, decision_threshold)
+    sell_thr = np.percentile(sell_prob, decision_threshold)
+
+    y_pred = np.zeros(len(proba), dtype=int)
+
+    y_pred[(buy_prob >= buy_thr) & (buy_prob > sell_prob)] = 2
+    y_pred[(sell_prob >= sell_thr) & (sell_prob > buy_prob)] = 1
+
+    return y_pred
+
+
 def class_weight_balance(y):
     classes = np.array([0, 1, 2])
     weights = compute_class_weight(
@@ -68,4 +83,3 @@ def class_weight_balance(y):
     class_weight = dict(zip(classes, weights))
     sample_weight = np.array([class_weight[label] for label in y])
     return sample_weight
-
