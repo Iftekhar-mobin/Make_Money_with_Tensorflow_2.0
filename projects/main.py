@@ -240,13 +240,13 @@ class SignalMLPipeline:
     # ---------------------------
     # TESTING ON NEW DATA
     # ---------------------------
-    def test_new_dataset(self):
+    def test_new_dataset(self, sample_size=10000):
         print(f"Loading external test dataset...{self.test_file_path}")
         test_df = load_test_dataset(self.test_file_path)
         test_df = rename_col(test_df)
 
         print("Extracting features from test dataset...")
-        test_df_features = extract_fast_features(test_df.iloc[-10000:, :])
+        test_df_features = extract_fast_features(test_df.iloc[-sample_size:, :])
         test_df_features = handling_nan_after_feature_generate(test_df_features)
 
         print(f'Using the selected features {self.selected_features}')
@@ -267,8 +267,8 @@ class SignalMLPipeline:
         # Add 'close' column as an additional feature for plotting result
         result_df['close'] = test_df_features['close']
         result_df.reset_index(drop=True, inplace=True)
-        generate_signal_plot(result_df, val_limit=10000)
-        visualize_dataset(result_df, result_df, limit=10000, test_visualize=True)
+        generate_signal_plot(result_df, val_limit=sample_size)
+        visualize_dataset(result_df, result_df, limit=sample_size, test_visualize=True)
 
         return result_df
 
