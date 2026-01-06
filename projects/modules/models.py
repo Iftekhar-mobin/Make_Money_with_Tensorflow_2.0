@@ -30,7 +30,7 @@ def xgbmodel(X_processed, y_mapped, sample_weight=None, report_dir="reports", de
         subsample=0.8,
         colsample_bytree=0.8,
         # Increase value gives more signal and vice versa
-        min_child_weight=25,
+        min_child_weight=20,
         gamma=0.2,
         reg_alpha=0.1,
         reg_lambda=1.0,
