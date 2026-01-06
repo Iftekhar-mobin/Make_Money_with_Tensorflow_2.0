@@ -23,7 +23,7 @@ def visualize_dataset(df, processed, limit=3000, test_visualize=False):
     df.reset_index(inplace=True, drop=True)
     if test_visualize:
         generate_signal_plot(filter_by_slope(df, look_ahead=30), val_limit=limit)
-        generate_signal_plot(remove_low_volatility_signals(processed))
+        # generate_signal_plot(remove_low_volatility_signals(processed))
     else:
         generate_signal_plot(df, val_limit=limit)
         generate_signal_plot(generate_signal_only_extrema(df), val_limit=limit)

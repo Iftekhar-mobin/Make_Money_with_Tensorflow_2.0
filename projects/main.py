@@ -136,7 +136,13 @@ class SignalMLPipeline:
 
             step_name, func = self.step_functions[step]
             print(f"=== Step {step}: {step_name.upper()} ===")
-            func()
+
+            result = func()
+
+            # 🔥 IMPORTANT: exhaust generator if returned
+            if hasattr(result, "__iter__") and not isinstance(result, pd.DataFrame):
+                for _ in result:
+                    pass
 
     # ---------------------------
     # LOAD + CLEAN DATA
@@ -240,37 +246,64 @@ class SignalMLPipeline:
     # ---------------------------
     # TESTING ON NEW DATA
     # ---------------------------
-    def test_new_dataset(self, sample_size=10000):
-        print(f"Loading external test dataset...{self.test_file_path}")
+    def test_new_dataset(self, sample_size=10_000, chunk_wise=True):
+        print(f"Loading external test dataset... {self.test_file_path}")
         test_df = load_test_dataset(self.test_file_path)
         test_df = rename_col(test_df)
 
-        print("Extracting features from test dataset...")
-        test_df_features = extract_fast_features(test_df.iloc[-sample_size:, :])
-        test_df_features = handling_nan_after_feature_generate(test_df_features)
+        total_size = len(test_df)
+        print(f"Total test samples: {total_size}")
 
-        print(f'Using the selected features {self.selected_features}')
-        if self.selected_features:
-            x = test_df_features[self.selected_features].copy()
-        else:
+        # Load model & features once
+        if not self.selected_features:
             pipe_, selected_features_, model_ = load_model()
             self.selected_features = selected_features_
-            x = test_df_features[self.selected_features].copy()
             self.pipe = pipe_
             self.model = model_
 
-        print("Predicting signals...")
-        result_df = predict_with_new_dataset(
-            x, self.pipe, self.model,
-            test_df_features[self.selected_features], decision_threshold=DECISION_CONF, decision_prob=False
-        )
-        # Add 'close' column as an additional feature for plotting result
-        result_df['close'] = test_df_features['close']
-        result_df.reset_index(drop=True, inplace=True)
-        generate_signal_plot(result_df, val_limit=sample_size)
-        visualize_dataset(result_df, result_df, limit=sample_size, test_visualize=True)
+        def process_batch(batch_df_):
+            print("Extracting features...")
+            batch_features = extract_fast_features(batch_df_)
+            batch_features = handling_nan_after_feature_generate(batch_features)
 
-        return result_df
+            x = batch_features[self.selected_features].copy()
+
+            print("Predicting signals...")
+            result_df = predict_with_new_dataset(
+                x,
+                self.pipe,
+                self.model,
+                batch_features[self.selected_features],
+                decision_threshold=DECISION_CONF,
+                decision_prob=False,
+            )
+
+            result_df["close"] = batch_features["close"]
+            result_df.reset_index(drop=True, inplace=True)
+
+            generate_signal_plot(result_df, val_limit=len(result_df))
+            visualize_dataset(
+                result_df,
+                result_df,
+                limit=len(result_df),
+                test_visualize=True,
+            )
+
+            return result_df
+
+        # 🔀 Mode selection
+        if not chunk_wise:
+            print("🚀 Running full dataset prediction...")
+            return process_batch(test_df)
+
+        # 🔁 Chunk-wise processing
+        print("🔄 Running chunk-wise prediction...")
+        for start in range(0, total_size, sample_size):
+            end = min(start + sample_size, total_size)
+            print(f"\nProcessing samples {start} → {end}")
+
+            batch_df = test_df.iloc[start:end].copy()
+            yield process_batch(batch_df)
 
     # ---------------------------
     # RUN FULL PIPELINE

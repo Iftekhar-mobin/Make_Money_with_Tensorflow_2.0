@@ -29,11 +29,12 @@ def xgbmodel(X_processed, y_mapped, sample_weight=None, report_dir="reports", de
         learning_rate=0.03,
         subsample=0.8,
         colsample_bytree=0.8,
-        min_child_weight=10,
+        # Increase value gives more signal and vice versa
+        min_child_weight=25,
         gamma=0.2,
         reg_alpha=0.1,
         reg_lambda=1.0,
-        objective="multi:softmax",
+        objective="multi:softprob",
         num_class=3,
         eval_metric="mlogloss",
         tree_method="hist"
@@ -219,6 +220,6 @@ def predict_with_new_dataset(X_new, pipe, model, test_df_features, decision_thre
     test_df_features = test_df_features.copy()
     test_df_features["Signal"] = y_pred_labels
 
-    print(test_df_features.head(), test_df_features["Signal"].value_counts())
+    print(test_df_features["Signal"].value_counts())
 
     return test_df_features
