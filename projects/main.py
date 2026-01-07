@@ -372,7 +372,7 @@ if __name__ == "__main__":
         data_dir_=data_dir,
         file_name_=training_file,
         test_file_path_=test_file,
-        n_features=20,
+        n_features=10,
         visualize=args.visualize
     )
 
