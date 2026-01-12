@@ -1,4 +1,5 @@
 import os
+import time
 import joblib
 import argparse
 import uuid
@@ -7,16 +8,23 @@ from pathlib import Path
 
 
 def save_model(pipe, features, model):
-    models_path = os.path.join(os.getcwd(), 'models')
+    models_path = os.path.join(os.getcwd(), "models")
 
-    if os.path.exists(models_path):
-        joblib.dump(pipe, os.path.join(models_path, "preprocessing_pipe.pkl"))
-        joblib.dump(features, os.path.join(models_path, "selected_features.pkl"))
-        joblib.dump(model, os.path.join(models_path, "xgb_model.pkl"))
-        print(f"Model saved successfully at {models_path}.")
+    # Always ensure directory exists
+    os.makedirs(models_path, exist_ok=True)
 
-    else:
-        raise OSError('Directory not found. Please download properly')
+    pipe_path = os.path.join(models_path, "preprocessing_pipe.pkl")
+    feat_path = os.path.join(models_path, "selected_features.pkl")
+    model_path = os.path.join(models_path, "xgb_model.pkl")
+
+    # Save (joblib overwrites by default)
+    joblib.dump(pipe, pipe_path)
+    joblib.dump(features, feat_path)
+    joblib.dump(model, model_path)
+
+    # Verify overwrite by modified time
+    print(f"Model saved successfully at {models_path}")
+    print("Model last modified:", time.ctime(os.path.getmtime(model_path)))
 
 
 def load_model():

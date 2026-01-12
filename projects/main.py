@@ -218,7 +218,7 @@ class SignalMLPipeline:
         x_processed, y_mapped, pipe, sample_weight_ = prepare_dataset_for_model(x_selected, y, sample_weight=True)
         print('Training raw XGB model with sample weight')
         model, _ = xgbmodel(x_processed, y_mapped, sample_weight_, report_dir='reports',
-                            decision_threshold=DECISION_CONF, decision_prob=False)
+                            decision_threshold=DECISION_CONF, decision_prob=True)
 
         # print("Running K-Fold evaluation...")
         # xgbmodel_kfold(model, x_processed, y_mapped)
