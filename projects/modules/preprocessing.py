@@ -72,14 +72,40 @@ def probability_mapping(proba, decision_threshold=97):
     return y_pred
 
 
-def class_weight_balance(y):
+def class_weight_balance(y, clip_max=10.0, normalize=True):
+    # Ensure numpy array (safe)
+    y = np.asarray(y)
+
+    # Explicit classes
     classes = np.array([0, 1, 2])
+
+    # Compute balanced class weights
     weights = compute_class_weight(
         class_weight="balanced",
         classes=classes,
         y=y
     )
 
+    # Class → weight mapping
     class_weight = dict(zip(classes, weights))
-    sample_weight = np.array([class_weight[label] for label in y])
+
+    # Build per-sample weights
+    sample_weight = np.array([class_weight[int(label)] for label in y])
+
+    # ---- DEBUG PRINTS ----
+    print("Class distribution BEFORE:",
+          dict(zip(*np.unique(y, return_counts=True))))
+
+    print("Class → Weight mapping:")
+    for c in classes:
+        print(f"Class {c}: weight = {class_weight[c]}")
+
+    # ---- STABILIZATION (IMPORTANT) ----
+    # if clip_max is not None:
+    #     sample_weight = np.clip(sample_weight, 1.0, clip_max)
+
+    if normalize:
+        sample_weight = sample_weight / sample_weight.mean()
+
     return sample_weight
+
